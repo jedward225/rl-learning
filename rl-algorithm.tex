@@ -1,0 +1,223 @@
+\documentclass{article}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+
+\begin{document}
+
+\begin{algorithm}
+\caption{Policy Iteration}
+\begin{algorithmic}[1]
+\Require Initialize policy $\pi(s)$ and value function $V(s)$ arbitrarily
+\Repeat
+    \While{$\delta > \theta$}
+        \State $\delta \gets 0$
+        \ForAll{$s \in S$}
+            \State $v \gets V(s)$
+            \State $V(s) \gets r(s, \pi(s)) + \gamma \sum_{s'} P(s' \mid s, \pi(s)) V(s')$
+            \State $\delta \gets \max(\delta, |v - V(s)|)$
+        \EndFor
+    \EndWhile
+    \State $\pi_{\text{old}} \gets \pi$
+    \ForAll{$s \in S$}
+        \State $\pi(s) \gets \arg\max_{a} \left\{r(s, a) + \gamma \sum_{s'} P(s' \mid s, a) V(s')\right\}$
+    \EndFor
+\Until{$\|\pi_{\text{old}} - \pi\| = 0$}
+\State \Return Optimal policy $\pi^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Value Iteration}
+\begin{algorithmic}[1]
+\Require Initialize value function $V(s)$ arbitrarily
+\Repeat
+    \State $\delta \gets 0$
+    \ForAll{$s \in S$}
+        \State $v \gets V(s)$
+        \State $V(s) \gets \max_{a} \left\{r(s, a) + \gamma \sum_{s'} P(s' \mid s, a) V(s')\right\}$
+        \State $\delta \gets \max(\delta, |v - V(s)|)$
+    \EndFor
+\Until{$\delta < \theta$}
+\ForAll{$s \in S$}
+    \State $\pi(s) \gets \arg\max_{a} \left\{r(s, a) + \gamma \sum_{s'} P(s' \mid s, a) V(s')\right\}$
+\EndFor
+\State \Return Optimal policy $\pi^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Sarsa}
+\begin{algorithmic}[1]
+\Require Initialize action-value function $Q(s, a)$ arbitrarily
+\Repeat
+    \State Initialize state $s$
+    \State Select action $a$ from state $s$ using policy (e.g., $\epsilon$-greedy)
+    \Repeat
+        \State Execute action $a$, observe reward $r$ and next state $s'$
+        \State Select next action $a'$ from state $s'$ using policy (e.g., $\epsilon$-greedy)
+        \State $Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma Q(s', a') - Q(s, a)\right]$
+        \State $s \gets s'$
+        \State $a \gets a'$
+    \Until{$s$ is a terminal state}
+\Until{Convergence}
+\State \Return Optimal action-value function $Q^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{n-Step Sarsa}
+\label{alg:n-step-sarsa}
+\begin{algorithmic}[1]
+\Require Initialize action-value function $Q(s, a)$ arbitrarily
+\State Initialize step size $\alpha \in (0, 1]$
+\For{each episode}
+    \State Initialize state $S_0$
+    \State Select $a_0$ based on policy $\pi(s_0, a)$ (e.g., $\epsilon$-greedy)
+    \State Set $T \leftarrow \text{INTMAX}$ (length of one episode)
+    \State Set $\gamma \leftarrow 0$
+    \For{$t \leftarrow 0, 1, 2, \cdots$ until $\gamma = T - 1$}
+        \If{$t < T$}
+            \State $r_{t+1}, s_{t+1} \leftarrow \text{Env}(s_t, a_t)$
+            \If{$s_{t+1}$ is terminal}
+                \State $T \leftarrow t + 1$
+            \Else
+                \State Select $a_{t+1}$ based on policy $\pi(s_t, a)$
+            \EndIf
+        \EndIf
+        \State $\tau \leftarrow t - n + 1$ (update time point. This is n-step Sarsa, only update the step before $n+1$, continue until all states are updated.)
+        \If{$\tau \geq 0$}
+            \State $G \leftarrow \sum_{i=\tau+1}^{\min(\tau+n, T)} \gamma^{i-\tau-1} r_i$
+            \If{$\gamma + n < T$}
+                \State $G \leftarrow G + \gamma^n Q(s_{t+n}, a_{\gamma+n})$
+            \EndIf
+            \State $Q(s_\gamma, a_\gamma) \leftarrow Q(s_\gamma, a_\gamma) + \alpha [G - Q(s_\gamma, a_\gamma)]$
+        \EndIf
+    \EndFor
+\EndFor
+\State \Return Optimal action-value function $Q^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Q-learning}
+\begin{algorithmic}[1]
+\Require Initialize action-value function $Q(s, a)$ arbitrarily
+\Repeat
+    \State Initialize state $s$
+    \Repeat
+        \State Select action $a$ from state $s$ using policy (e.g., $\epsilon$-greedy)
+        \State Execute action $a$, observe reward $r$ and next state $s'$
+        \State $Q(s, a) \gets Q(s, a) + \alpha \left[r + \gamma \max_{a'} Q(s', a') - Q(s, a)\right]$
+        \State $s \gets s'$
+    \Until{$s$ is a terminal state}
+\Until{Convergence}
+\State \Return Optimal action-value function $Q^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Deep Q-Network (DQN) Algorithm with replay buffer and target network}
+\label{alg:dqn}
+\begin{algorithmic}[1]
+\Require Initialize network $Q_{\omega}(s, a)$ with random weights $\omega$
+\State Copy the same parameters $\omega^- \leftarrow \omega$ to initialize target network $Q_{\omega^-}$
+\State Initialize replay memory $\mathcal R$
+\For{$episode = 1 \to E$}
+    \State Get initial state $s_1$ from the environment
+    \For{$t = 1 \to T$}
+        \State Select action $a_t$ from $Q_{\omega}(s, a)$ using $\epsilon$-greedy policy
+        \State Execute action $a_t$, get reward $r_t$, and observe next state $s_{t+1}$
+        \State Store $(s_t, a_t, r_t, s_{t+1})$ in replay memory $R$
+        \State Sample $N$ transitions $\{(s_i, a_i, r_i, s_{i+1})\}_{i=1,\ldots,N}$ from $\mathcal R$
+        \For{each transition}
+            \State Compute target $y_i = r_i + \gamma \max_a Q_{\omega^-}(s_{i+1}, a)$
+        \EndFor
+        \State Minimize loss $L = \frac{1}{N} \sum_t (y_i - Q_{\omega}(s_i, a_i))^2$ to update $Q_{\omega}$
+        \State Update target network $Q_{\omega^-}$
+    \EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+
+
+\begin{algorithm}
+\caption{REINFORCE}
+\begin{algorithmic}[1]
+\Require Initialize $\pi_\theta$ arbitrarily
+\Repeat
+    \State sample $\{\tau^i\}$ from $\pi_\theta(a_t | s_t)$ (run the policy)
+    \State $\nabla_\theta J(\theta) \approx \sum_i (\sum_t \nabla_\theta \log \pi_\theta(a+t^i | s_t^i))(\sum_t r(s_t^i | a_t^i))$
+    \State $\theta \gets \theta + \alpha \nabla_\theta J(\theta)$
+\Until{Convergence}
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+\begin{algorithm}
+\caption{Actor-Critic}
+\begin{algorithmic}[1]
+\Require Initialize Actor $\theta$ and Critic $\omega$
+\ForAll{$e = 1 \to E$}
+    \State sample $\tau^e$ based on policy $\pi_\theta$
+    \State $\delta_t = r_t + \gamma V_\omega(s_{t + 1}) - V_\omega(s_t)$
+    \State $\omega \gets \omega + \alpha_\omega\sum_t\delta_t\nabla_\omega V_\omega(s_t)$
+    \State $\theta \gets \theta + \alpha_\theta \sum_t\delta_t\nabla_\theta\log\pi_\theta(a_t | s_t)$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}
+\caption{PPO-Clip}
+\begin{algorithmic}[1]
+\Require The initial policy parameters $\theta_0$ and the initial value function parameters $\phi_0$
+\ForAll{$k = 0, 1, 2, \ldots$}
+    \State Collect set of trajectories $\mathcal{D}_k = \{\tau_i\}$ by running policy $\pi_k = \pi(\theta_k)$ in the environment.
+    \State Compute rewards-to-go $\hat{R}_t$.
+    \State Compute advantage estimates, $\hat{A}_t$ (using any method of advantage estimation) based on the current value function $V_{\phi_k}$.
+    \State Update the policy by maximizing the PPO-Clip objective:
+    $$
+    \theta_{k+1} = \arg\max_{\theta} \frac{1}{|\mathcal{D}_k| T} \sum_{\tau \in \mathcal{D}_k} \sum_{t=0}^{T} \min \left( \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_k}(a_t | s_t)} A^{\pi_{\theta_k}}(s_t, a_t), \quad g(\epsilon, A^{\pi_{\theta_k}}(s_t, a_t)) \right),
+    $$
+    typically via stochastic gradient ascent with Adam.
+    \State Fit value function by regression on mean-squared error:
+    $$
+    \phi_{k+1} = \arg\min_{\phi} \frac{1}{|\mathcal{D}_k| T} \sum_{\tau \in \mathcal{D}_k} \sum_{t=0}^{T} \left( V_\phi(s_t) - \hat{R}_t \right)^2,
+    $$
+    typically via some gradient descent algorithm.
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+% \begin{algorithm}
+% \caption{A2C Algorithm}
+% \label{alg:a2c}
+% \begin{algorithmic}[1]
+% \State \textbf{Master:}
+% \State \textbf{Hyperparameters:} Learning rates $\eta_{\psi}$ and $\eta_{\theta}$, set of Worker nodes $\mathcal{W}$.
+% \State \textbf{Input:} Initial policy parameters $\theta_0$, initial value function parameters $\psi_0$.
+% \State Initialize $\theta = \theta_0$ and $\psi = \psi_0$
+% \For{$k = 0, 1, 2, \cdots$}
+%     \State $(g_{\psi}, g_{\theta}) = 0$
+%     \For{each Worker node in $\mathcal{W}$}
+%         \State $(g_{\psi}, g_{\theta}) = (g_{\psi}, g_{\theta}) + \textbf{worker}(V^{\pi_{\theta}}_{\psi}, \pi_{\theta})$
+%     \EndFor
+%     \State $\psi = \psi - \eta_{\psi} g_{\psi}$; $\theta = \theta + \eta_{\theta} g_{\theta}$
+% \EndFor
+
+% \State \textbf{Worker:}
+% \State \textbf{Hyperparameters:} Reward discount factor $\gamma$, trajectory length $L$.
+% \State \textbf{Input:} Value function $V^{\pi_{\theta}}_{\psi}$, policy function $\pi_{\theta}$.
+% \State Execute $L$ steps of policy $\pi_{\theta}$, save $\{S_t, A_t, R_t, S_{t+1}\}$.
+% \State Estimate advantage function $\hat{A}_t = R_t + \gamma V^{\pi_{\theta}}_{\psi}(S_{t+1}) - V^{\pi_{\theta}}_{\psi}(S_t)$.
+% \State $J(\theta) = \sum_t \log \pi_{\theta}(A_t | S_t) \hat{A}_t$
+% \State $J_{V^{\pi_{\theta}}_{\psi}}(\psi) = \sum_t \hat{A}_t^2$
+% \State $(g_{\psi}, g_{\theta}) = (\nabla J_{V^{\pi_{\theta}}_{\psi}}(\psi), \nabla J(\theta))$
+% \State Return $(g_{\psi}, g_{\theta})$
+% \end{algorithmic}
+% \end{algorithm}
+
+\end{document}
